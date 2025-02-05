@@ -35,7 +35,7 @@ RUN apt-get update -y
 RUN apt-get install nginx php8.3-fpm php8.3-cli php8.3-sqlite3 php8.3-xml php8.3-curl php8.3-yaml php8.3-opcache sqlite3 -y
 
 # Clone project in the container
-RUN git clone https://github.com/lbr38/repomanager.git /tmp/repomanager
+RUN git clone https://github.com/ursinn/repomanager.git /tmp/repomanager
 # For tests only
 RUN if [ "$env" = "devel" ]; then \
        cd /tmp/repomanager && git checkout devel; \
