@@ -41,5 +41,5 @@ jobs:
         with:
           file: ./docker/Dockerfile
           push: true
-          tags: lbr38/repomanager:latest, lbr38/repomanager:${{ env.VERSION }}
+          tags: ufilli/repomanager:latest, ufilli/repomanager:${{ env.VERSION }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7

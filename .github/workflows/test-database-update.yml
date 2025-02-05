@@ -23,9 +23,9 @@ jobs:
       # Start from release index which is 4.0.0
       # Pull images starting from release 4.0.0
       # Then pull the next image of the index, etc..
-      - name: Test all releases update from lbr38/repomanager
+      - name: Test all releases update from ursinn/repomanager
         run: |
-          RELEASES=$(curl -s https://api.github.com/repos/lbr38/repomanager/releases?per_page=10000 | jq -r '.[].name' | tac)
+          RELEASES=$(curl -s https://api.github.com/repos/ursinn/repomanager/releases?per_page=10000 | jq -r '.[].name' | tac)
 
           index="0"
           declare -A RELEASES_ARRAY
@@ -88,7 +88,7 @@ jobs:
           done
 
       # Finally, test the devel image
-      - name: Test devel image from lbr38/repomanager
+      - name: Test devel image from ursinn/repomanager
         run: |
           docker rm -f repomanager
           docker system prune -a -f
