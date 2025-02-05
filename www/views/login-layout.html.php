@@ -12,90 +12,169 @@ include_once(ROOT . '/views/includes/head.inc.php');
 $loginErrors = array();
 $error = 0;
 
+if ((getenv('SSO_ONLY') == 'true') && (getenv('SSO_ENABLED') == 'true')) {
+    ssoLogin();
+    exit();
+}
+
 /**
- *  If username and password have been sent
+ * Login request
  */
-if (!empty($_POST['username']) and !empty($_POST['password']) and !empty($_POST['authType'])) {
+if (!empty($_POST['authType']) || isset($_GET['code'])) {
+
     /**
-     *  Checking auth type (default is local for the moment)
+     * SSO Login
      */
-    if ($_POST['authType'] != 'local' and $_POST['authType'] != 'ldap') {
-        $error++;
-        $loginErrors[] = 'Specified connection type is invalid';
+    if (($_POST['authType'] == 'sso' || isset($_GET['code'])) && getenv('SSO_ENABLED') == 'true') {
+        ssoLogin();
+        exit();
     }
 
     /**
-     *  Continue if there is no error
+     *  If username and password have been sent
      */
-    if ($error == 0) {
-        $username = \Controllers\Common::validateData($_POST['username']);
-        $mylogin = new \Controllers\Login();
-        $myhistory = new \Controllers\History();
-
+    if (!empty($_POST['username']) and !empty($_POST['password'])) {
         /**
-         *  Case auth type is 'ldap'
+         *  Checking auth type (default is local for the moment)
          */
-        if ($_POST['authType'] == 'ldap') {
-            /**
-             *  To do
-             */
-
-            $loginErrors[] = 'Invalid login and/or password';
+        if ($_POST['authType'] != 'local' and $_POST['authType'] != 'ldap') {
+            $error++;
+            $loginErrors[] = 'Specified connection type is invalid';
         }
 
         /**
-         *  Case auth type is 'local'
+         *  Continue if there is no error
          */
-        if ($_POST['authType'] == 'local') {
+        if ($error == 0) {
+            $username = \Controllers\Common::validateData($_POST['username']);
+            $mylogin = new \Controllers\Login();
+            $myhistory = new \Controllers\History();
+
             /**
-             *  Checking in database that username/password couple is matching
+             *  Case auth type is 'ldap'
              */
-            try {
-                $mylogin->checkUsernamePwd($username, $_POST['password']);
-
+            if ($_POST['authType'] == 'ldap') {
                 /**
-                 *  Getting all user informations in datbase
+                 *  To do
                  */
-                $mylogin->getAll($username);
 
+                $loginErrors[] = 'Invalid login and/or password';
+            }
+
+            /**
+             *  Case auth type is 'local'
+             */
+            if ($_POST['authType'] == 'local') {
                 /**
-                 *  Starting session
+                 *  Checking in database that username/password couple is matching
                  */
-                session_start();
+                try {
+                    $mylogin->checkUsernamePwd($username, $_POST['password']);
 
-                /**
-                 *  Saving user informations in session variable
-                 */
-                $_SESSION['username']   = $username;
-                $_SESSION['role']       = $mylogin->getRole();
-                $_SESSION['first_name'] = $mylogin->getFirstName();
-                $_SESSION['last_name']  = $mylogin->getLastName();
-                $_SESSION['email']      = $mylogin->getEmail();
-                $_SESSION['type']       = 'local';
+                    /**
+                     *  Getting all user informations in datbase
+                     */
+                    $mylogin->getAll($username);
 
-                $myhistory->set($username, 'Authentication', 'success');
+                    /**
+                     *  Starting session
+                     */
+                    session_start();
 
-                /**
-                 *  If an 'origin' cookie exists then redirect to the specified URI
-                 */
-                if (!empty($_COOKIE['origin'])) {
-                    if ($_COOKIE['origin'] != '/logout') {
-                        header('Location: ' . $_COOKIE['origin']);
-                        exit();
+                    /**
+                     *  Saving user informations in session variable
+                     */
+                    $_SESSION['username'] = $username;
+                    $_SESSION['role'] = $mylogin->getRole();
+                    $_SESSION['first_name'] = $mylogin->getFirstName();
+                    $_SESSION['last_name'] = $mylogin->getLastName();
+                    $_SESSION['email'] = $mylogin->getEmail();
+                    $_SESSION['type'] = 'local';
+
+                    $myhistory->set($username, 'Authentication', 'success');
+
+                    /**
+                     *  If an 'origin' cookie exists then redirect to the specified URI
+                     */
+                    if (!empty($_COOKIE['origin'])) {
+                        if ($_COOKIE['origin'] != '/logout') {
+                            header('Location: ' . $_COOKIE['origin']);
+                            exit();
+                        }
                     }
-                }
 
-                /**
-                 *  Else redirect to default page '/'
-                 */
-                header('Location: /');
-                exit();
-            } catch (Exception $e) {
-                $loginErrors[] = $e->getMessage();
+                    /**
+                     *  Else redirect to default page '/'
+                     */
+                    header('Location: /');
+                    exit();
+                } catch (Exception $e) {
+                    $loginErrors[] = $e->getMessage();
+                }
             }
         }
     }
-} ?>
+}
+
+function ssoLogin(): void
+{
+    require_once ROOT . '/libs/vendor/autoload.php';
+
+    $oidc = new Jumbojett\OpenIDConnectClient(
+        getenv('SSO_PROVIDER_URL'),
+        getenv('SSO_CLIENT_ID'),
+        getenv('SSO_CLIENT_SECRET')
+    );
+
+    $oidc->setHttpUpgradeInsecureRequests(false);
+    $oidc->authenticate();
+
+    if (getenv('SSO_CLAIM_USERNAME_TYPE') == 'userInfo') {
+        $username = $oidc->requestUserInfo(getenv('SSO_CLAIM_USERNAME_VALUE'));
+    } elseif (getenv('SSO_CLAIM_USERNAME_TYPE') == 'verifiedClaim') {
+        $username = $oidc->getVerifiedClaims(getenv('SSO_CLAIM_USERNAME_VALUE'));
+    }
+
+    $firstName = $oidc->requestUserInfo('given_name');
+    $lastName = $oidc->requestUserInfo('family_name');
+    $email = $oidc->requestUserInfo('email');
+
+    $role = $oidc->getVerifiedClaims('roles')[0];
+
+    /**
+     * Add user
+     */
+    $mylogin = new \Controllers\Login();
+    $mylogin->addUserSSO($username, $firstName, $lastName, $email, $role);
+
+    /**
+     *  Saving user informations in session variable
+     */
+    $_SESSION['username'] = $username;
+    $_SESSION['role'] = $role;
+    $_SESSION['first_name'] = $firstName;
+    $_SESSION['last_name'] = $lastName;
+    $_SESSION['email'] = $email;
+    $_SESSION['type'] = 'sso';
+
+    $myhistory = new \Controllers\History();
+    $myhistory->set($username, 'Authentication', 'success');
+
+    /**
+     *  If an 'origin' cookie exists then redirect to the specified URI
+     */
+    if (!empty($_COOKIE['origin'])) {
+        if ($_COOKIE['origin'] != '/logout') {
+            header('Location: ' . $_COOKIE['origin']);
+            exit();
+        }
+    }
+
+    /**
+     *  Else redirect to default page '/'
+     */
+    header('Location: /');
+}?>
 <head>
     <meta charset="utf-8">
     <!-- CSS -->
@@ -126,6 +205,19 @@ if (!empty($_POST['username']) and !empty($_POST['password']) and !empty($_POST[
                 <br>
                 <button class="btn-large-green" type="submit">Login</button>
             </form>
+            <br>
+
+            <?php
+            /**
+             * Show sso login button
+             */
+            if (getenv('SSO_ENABLED') == 'true') : ?>
+                <form action="/login" method="post">
+                    <input type="hidden" name="authType" value="sso" />
+                    <button class="btn-large-green" type="submit">SSO</button>
+                </form>
+                <?php
+            endif ?>
 
             <?php
             /**

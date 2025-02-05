@@ -16,6 +16,11 @@ ARG fqdn
 ARG max_upload_size
 ARG php_memory_limit="256M"
 
+ENV SSO_ENABLED=false
+ENV SSO_ONLY=false
+ENV SSO_CLAIM_USERNAME_TYPE=userInfo
+ENV SSO_CLAIM_USERNAME_VALUE=client_id
+
 # PACKAGES INSTALL
 
 # Install dependencies
