@@ -17,7 +17,13 @@ services:
       - "8080:8080"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /var/lib/docker/volumes/repomanager-dev-logs:/var/log/nginx
-      - /var/lib/docker/volumes/repomanager-dev-www:/var/www/repomanager
-      - /var/lib/docker/volumes/repomanager-dev-data:/var/lib/repomanager
-      - /var/lib/docker/volumes/repomanager-dev-repo:/home/repo
+      - repomanager-dev-logs:/var/log/nginx
+      - repomanager-dev-www:/var/www/repomanager
+      - repomanager-dev-data:/var/lib/repomanager
+      - repomanager-dev-repo:/home/repo
+
+volumes:
+  repomanager-dev-logs:
+  repomanager-dev-www:
+  repomanager-dev-data:
+  repomanager-dev-repo:
