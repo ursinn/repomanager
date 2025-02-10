@@ -157,6 +157,15 @@ class Task
     }
 
     /**
+     *  List all newest tasks
+     *  It is possible to add an offset to the request
+     */
+    public function listNewest(bool $withOffset = false, int $offset = 0)
+    {
+        return $this->model->listNewest($withOffset, $offset);
+    }
+
+    /**
      *  List all running tasks
      *  It is possible to filter the type of task ('immediate' or 'scheduled')
      *  It is possible to add an offset to the request
@@ -548,6 +557,10 @@ class Task
      */
     public function relaunch(int $id)
     {
+        if (!IS_ADMIN) {
+            throw new Exception('You are not allowed to relaunch a task');
+        }
+
         /**
          *  First, duplicate task in database
          */
@@ -574,6 +587,10 @@ class Task
      */
     public function kill(string $taskId)
     {
+        if (!IS_ADMIN) {
+            throw new Exception('You are not allowed to relaunch a task');
+        }
+
         if (!file_exists(PID_DIR . '/' . $taskId . '.pid')) {
             throw new Exception('Specified task PID does not exist');
         }

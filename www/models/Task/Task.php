@@ -138,6 +138,43 @@ class Task extends \Models\Model
     }
 
     /**
+     *  List all newest tasks
+     *  It is possible to add an offset to the request
+     */
+    public function listNewest(bool $withOffset, int $offset)
+    {
+        $data = array();
+
+        try {
+            $query = "SELECT * FROM tasks
+            WHERE Status = 'new'
+            ORDER BY Date DESC, Time DESC";
+
+            /**
+             *  Add offset if needed
+             */
+            if ($withOffset === true) {
+                $query .= " LIMIT 10 OFFSET :offset";
+            }
+
+            /**
+             *  Prepare query
+             */
+            $stmt = $this->db->prepare($query);
+            $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
+            $result = $stmt->execute();
+        } catch (\Exception $e) {
+            $this->db->logError($e);
+        }
+
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $data[] = $row;
+        }
+
+        return $data;
+    }
+
+    /**
      *  List all running tasks
      *  It is possible to filter the type of task ('immediate' or 'scheduled')
      *  It is possible to add an offset to the request
@@ -385,7 +422,7 @@ class Task extends \Models\Model
     public function duplicate(int $id) : int
     {
         try {
-            $stmt = $this->db->prepare("INSERT INTO tasks (Type, Raw_params) SELECT Type, Raw_params FROM tasks WHERE Id = :id");
+            $stmt = $this->db->prepare("INSERT INTO tasks (Type, Raw_params, Status) SELECT Type, Raw_params, 'new' FROM tasks WHERE Id = :id");
             $stmt->bindValue(':id', $id);
             $stmt->execute();
         } catch (\Exception $e) {

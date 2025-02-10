@@ -62,6 +62,41 @@ try {
     }
 
     /**
+     *  If task queuing is enabled and the maximum number of simultaneous tasks is set, check if the task can be started
+     */
+    if (!empty(TASK_QUEUING) and TASK_QUEUING == 'true' and !empty(TASK_QUEUING_MAX_SIMULTANEOUS)) {
+        while (true) {
+            /**
+             *  Get running tasks
+             */
+            $runningTasks = $myTask->listRunning();
+
+            /**
+             *  If number of running tasks is greater than or equal to the maximum number of simultaneous tasks, we wait
+             */
+            if (count($runningTasks) >= TASK_QUEUING_MAX_SIMULTANEOUS) {
+                sleep(5);
+                continue;
+            }
+
+            /**
+             *  Get the newest task in the queue (tasks with Status = 'new')
+             */
+            $newestTask = $myTask->listNewest();
+
+            /**
+             *  If the first task in the newest tasks list has the same Id as $taskId, then this task can be started
+             */
+            if ($newestTask[0]['Id'] == $taskId) {
+                break;
+            }
+
+            // Just for safety
+            sleep(5);
+        }
+    }
+
+    /**
      *  Instantiate controller and execute action
      */
     $controller = new $controllerPath($taskId);

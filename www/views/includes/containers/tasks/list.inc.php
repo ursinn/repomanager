@@ -8,6 +8,11 @@
         \Controllers\Layout\Table\Render::render('tasks/list-scheduled');
 
         /**
+         *  Print queued tasks table
+         */
+        \Controllers\Layout\Table\Render::render('tasks/list-queued');
+
+        /**
          *  Print running tasks table
          */
         \Controllers\Layout\Table\Render::render('tasks/list-running');

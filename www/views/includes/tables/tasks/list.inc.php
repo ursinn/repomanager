@@ -1,6 +1,10 @@
 <div class="reloadable-table" table="<?= $table ?>" offset="<?= $reloadableTableOffset ?>">
     <?php
     if (!empty($reloadableTableContent)) :
+        if (!empty($taskTableTitle)) {
+            echo '<h6 class="margin-top-0 margin-bottom-5">' . $taskTableTitle . '</h6>';
+        }
+
         foreach ($reloadableTableContent as $item) :
             $headerColor = '';
 
@@ -75,19 +79,14 @@
                     </div>
 
                     <div class="flex flex-direction-column row-gap-4">
-                        <span>
-                            <b>
-                                <?php
-                                /**
-                                 *  If task is immediate, display the date and time
-                                 */
-                                if (!empty($item['Date']) and !empty($item['Time'])) :
-                                    echo DateTime::createFromFormat('Y-m-d', $item['Date'])->format('d-m-Y') . ' ' . $item['Time'];
-                                endif ?>
-                            </b>
-                        </span>
-
                         <?php
+                        /**
+                         *  If task is immediate, display the date and time
+                         */
+                        if (!empty($item['Date']) and !empty($item['Time'])) :
+                            echo '<span><b>' . DateTime::createFromFormat('Y-m-d', $item['Date'])->format('d-m-Y') . ' ' . $item['Time'] . '</b></span>';
+                        endif;
+
                         /**
                          *  If task is scheduled
                          */
@@ -179,13 +178,6 @@
                         }
 
                         /**
-                         *  Delete task button
-                         */
-                        if ($item['Status'] == 'scheduled') {
-                            echo '<img class="icon-lowopacity cancel-scheduled-task-btn" src="/assets/icons/delete.svg" task-id="' . $item['Id'] . '" title="Cancel and delete scheduled task" />';
-                        }
-
-                        /**
                          *  Task status icon
                          */
                         if ($item['Status'] == 'scheduled') {
@@ -219,6 +211,13 @@
 
                     if ($item['Status'] == 'stopped') {
                         echo '<img class="icon-np" src="/assets/icons/warning-red.svg" title="Task stopped by the user" />';
+                    }
+
+                    /**
+                     *  Delete task button, only for scheduled and queued tasks
+                     */
+                    if ($item['Status'] == 'scheduled' or $item['Status'] == 'new') {
+                        echo '<img class="icon-lowopacity cancel-task-btn" src="/assets/icons/delete.svg" task-id="' . $item['Id'] . '" title="Cancel and delete scheduled task" />';
                     } ?>
                 </div>
             </div>
@@ -401,6 +400,8 @@
         <div class="flex justify-end">
             <?php \Controllers\Layout\Table\Render::paginationBtn($reloadableTableCurrentPage, $reloadableTableTotalPages); ?>
         </div>
+
+        <br><br>
 
         <?php
     endif ?>
