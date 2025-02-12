@@ -347,6 +347,51 @@ class Settings
             }
         }
 
+        /**
+         * SSO settings
+         */
+        if (!defined('SSO_ENABLED')) {
+            if (getenv('SSO_ENABLED') == 'true') {
+                define('SSO_ENABLED', true);
+            } else {
+                define('SSO_ENABLED', false);
+            }
+        }
+
+        if (!defined('SSO_ONLY')) {
+            if (getenv('SSO_ONLY') == 'true') {
+                define('SSO_ONLY', true);
+            } else {
+                define('SSO_ONLY', false);
+            }
+        }
+
+        if (SSO_ENABLED == 'true') {
+            if (!defined('SSO_PROVIDER_URL')) {
+                define('SSO_PROVIDER_URL', getenv('SSO_PROVIDER_URL'));
+            }
+
+            if (!defined('SSO_CLIENT_ID')) {
+                define('SSO_CLIENT_ID', getenv('SSO_CLIENT_ID'));
+            }
+
+            if (!defined('SSO_CLIENT_SECRET')) {
+                define('SSO_CLIENT_SECRET', getenv('SSO_CLIENT_SECRET'));
+            }
+
+            if (!defined('SSO_USERNAME')) {
+                define('SSO_USERNAME', getenv('SSO_USERNAME'));
+            }
+
+            if (!defined('SSO_GROUPS')) {
+                define('SSO_GROUPS', getenv('SSO_GROUPS'));
+            }
+
+            if (!defined('SSO_SCOPES')) {
+                define('SSO_SCOPES', getenv('SSO_SCOPES'));
+            }
+        }
+
         if (!defined('__LOAD_SETTINGS_ERROR')) {
             define('__LOAD_SETTINGS_ERROR', $__LOAD_SETTINGS_ERROR);
         }

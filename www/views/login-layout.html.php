@@ -12,7 +12,7 @@ include_once(ROOT . '/views/includes/head.inc.php');
 $loginErrors = array();
 $error = 0;
 
-if ((getenv('SSO_ONLY') == 'true') && (getenv('SSO_ENABLED') == 'true')) {
+if (SSO_ONLY && SSO_ENABLED) {
     ssoLogin();
     exit();
 }
@@ -25,7 +25,7 @@ if (!empty($_POST['authType']) || isset($_GET['code'])) {
     /**
      * SSO Login
      */
-    if (($_POST['authType'] == 'sso' || isset($_GET['code'])) && getenv('SSO_ENABLED') == 'true') {
+    if (($_POST['authType'] == 'sso' || isset($_GET['code'])) && SSO_ENABLED) {
         ssoLogin();
         exit();
     }
@@ -121,31 +121,27 @@ function ssoLogin(): void
     require_once ROOT . '/libs/vendor/autoload.php';
 
     $oidc = new Jumbojett\OpenIDConnectClient(
-        getenv('SSO_PROVIDER_URL'),
-        getenv('SSO_CLIENT_ID'),
-        getenv('SSO_CLIENT_SECRET')
+        SSO_PROVIDER_URL,
+        SSO_CLIENT_ID,
+        SSO_CLIENT_SECRET
     );
 
     $oidc->setHttpUpgradeInsecureRequests(false);
-    $scopes = getenv('SSO_ADDITIONAL_SCOPES');
+    $scopes = SSO_SCOPES;
     if (!empty($scopes)) {
-        $scopes = explode(' ', $scopes);
+        $scopes = explode(',', $scopes);
         $oidc->addScope($scopes);
     }
     $oidc->authenticate();
 
-    if (getenv('SSO_CLAIM_USERNAME_TYPE') == 'userInfo') {
-        $username = $oidc->requestUserInfo(getenv('SSO_CLAIM_USERNAME_VALUE'));
-    } elseif (getenv('SSO_CLAIM_USERNAME_TYPE') == 'verifiedClaim') {
-        $username = $oidc->getVerifiedClaims(getenv('SSO_CLAIM_USERNAME_VALUE'));
-    }
+    $username = $oidc->getVerifiedClaims(SSO_USERNAME);
 
     $firstName = $oidc->requestUserInfo('given_name');
     $lastName = $oidc->requestUserInfo('family_name');
     $email = $oidc->requestUserInfo('email');
 
     $role = 'usage';
-    $roles = $oidc->getVerifiedClaims(getenv('SSO_CLAIM_ROLE_VALUE'));
+    $roles = $oidc->getVerifiedClaims(SSO_GROUPS);
 
     if (is_array($roles)) {
         if (in_array('administrator', $roles)) {

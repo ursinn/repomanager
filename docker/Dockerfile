@@ -18,9 +18,9 @@ ARG php_memory_limit="256M"
 
 ENV SSO_ENABLED=false
 ENV SSO_ONLY=false
-ENV SSO_CLAIM_USERNAME_TYPE=userInfo
-ENV SSO_CLAIM_USERNAME_VALUE=client_id
-ENV SSO_CLAIM_ROLE_VALUE=roles
+ENV SSO_USERNAME=preferred_username
+ENV SSO_GROUPS=groups
+ENV SSO_SCOPES=groups,email,profile
 
 # PACKAGES INSTALL
 

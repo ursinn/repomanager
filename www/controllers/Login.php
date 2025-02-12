@@ -213,18 +213,11 @@ class Login
             $email = null;
         }
 
-        $additionalValidCharacters = getenv('SSO_USERNAME_ADDITIONAL_VALID_CHARACTERS');
-        if (!empty($additionalValidCharacters)) {
-            $additionalValidCharacters = explode(' ', $additionalValidCharacters);
-        } else {
-            $additionalValidCharacters = [];
-        }
-
         /**
          *  Check that username does not contain invalid characters
          */
-        if (Common::isAlphanumDash($username, $additionalValidCharacters) === false) {
-            throw new Exception('Username cannot contain special characters except hyphen and underscore');
+        if (Common::isAlphanumDash($username, ['@', '.']) === false) {
+            throw new Exception('Username cannot contain special characters except hyphen, underscore, at symbol and dot');
         }
 
         /**
