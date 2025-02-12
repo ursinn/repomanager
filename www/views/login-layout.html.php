@@ -127,6 +127,11 @@ function ssoLogin(): void
     );
 
     $oidc->setHttpUpgradeInsecureRequests(false);
+    $scopes = getenv('SSO_ADDITIONAL_SCOPES');
+    if (!empty($scopes)) {
+        $scopes = explode(' ', $scopes);
+        $oidc->addScope($scopes);
+    }
     $oidc->authenticate();
 
     if (getenv('SSO_CLAIM_USERNAME_TYPE') == 'userInfo') {
@@ -139,7 +144,17 @@ function ssoLogin(): void
     $lastName = $oidc->requestUserInfo('family_name');
     $email = $oidc->requestUserInfo('email');
 
-    $role = $oidc->getVerifiedClaims('roles')[0];
+    $role = 'usage';
+    $roles = $oidc->getVerifiedClaims(getenv('SSO_CLAIM_ROLE_VALUE'));
+
+    if (is_array($roles)) {
+        if (in_array('administrator', $roles)) {
+            $role = 'administrator';
+        }
+        if (in_array('super-administrator', $roles)) {
+            $role = 'super-administrator';
+        }
+    }
 
     /**
      * Add user
