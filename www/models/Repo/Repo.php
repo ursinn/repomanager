@@ -229,7 +229,7 @@ class Repo extends \Models\Model
     /**
      *  Retourne les snapshots d'un repos
      */
-    public function getSnapByRepoId(string $repoId, string $status = null)
+    public function getSnapByRepoId(string $repoId, string $status = '') : array
     {
         $snapshots = [];
 
@@ -358,7 +358,7 @@ class Repo extends \Models\Model
     /**
      *  Set snapshot metadata rebuild state
      */
-    public function snapSetRebuild(string $snapId, string $status = null)
+    public function snapSetRebuild(string $snapId, string $status = '') : void
     {
         try {
             $stmt = $this->db->prepare("UPDATE repos_snap SET Reconstruct = :status WHERE Id = :snapId");
@@ -442,26 +442,6 @@ class Repo extends \Models\Model
     {
         try {
             $stmt = $this->db->prepare("SELECT Id FROM repos_snap WHERE Id = :id AND Status = 'active'");
-            $stmt->bindValue(':id', $id);
-            $result = $stmt->execute();
-        } catch (Exception $e) {
-            DbLog::error($e);
-        }
-
-        if ($this->db->isempty($result) === true) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     *  Vérifie que l'Id d'environnement existe en base de données
-     */
-    public function existsEnvId(string $id)
-    {
-        try {
-            $stmt = $this->db->prepare("SELECT Id FROM repos_env WHERE Id = :id");
             $stmt->bindValue(':id', $id);
             $result = $stmt->execute();
         } catch (Exception $e) {
@@ -561,7 +541,7 @@ class Repo extends \Models\Model
     /**
      *  Retrait d'un repo du groupe spécifié
      */
-    public function removeFromGroup(string $repoId, string $groupId = null)
+    public function removeFromGroup(string $repoId, string $groupId = '') : void
     {
         try {
             /**

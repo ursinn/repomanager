@@ -2,6 +2,11 @@
 
 namespace Controllers\Repo\Mirror;
 
+/**
+ *  Global notes for deb mirroring:
+ *  - It is useless to create .completed files as checksum can be used to check if a package has been fully downloaded previously or not
+ */
+
 use Exception;
 use \Controllers\Process;
 use \Controllers\App\DebugMode;
@@ -17,38 +22,16 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
     /**
      *  Download Release file
      */
-    private function downloadReleaseFile(string $url)
+    private function downloadReleaseFile(string $url) : void
     {
         $this->taskLogSubStepController->new('getting-release', 'GETTING INRELEASE / RELEASE FILE', 'From ' . $url . '/');
 
-        /**
-         *  Check that Release.xx file exists before downloading it to prevent error message displaying for nothing
-         */
-        $releasePossibleNames = ['InRelease', 'Release', 'Release.gpg'];
-
-        foreach ($releasePossibleNames as $releaseFile) {
-            /**
-             *  Check if the URL is reachable
-             */
-            try {
-                $this->httpRequestController->get([
-                    'url' => $url . '/' . $releaseFile,
-                    'connectTimeout' => 30,
-                    'timeout' => 30,
-                    'sslCertificatePath' => $this->sslCustomCertificate,
-                    'sslPrivateKeyPath' => $this->sslCustomPrivateKey,
-                    'sslCaCertificatePath' => $this->sslCustomCaCertificate,
-                    'proxy' => PROXY ?? null,
-                ]);
-            } catch (Exception $e) {
+        // Try to download InRelease, Release and Release.gpg files
+        foreach (['InRelease', 'Release', 'Release.gpg'] as $releaseFile) {
+            if (!$this->download($url . '/' . $releaseFile, $this->workingDir . '/' . $releaseFile)) {
                 // If the URL is not reachable, then continue to the next possible Release file
                 continue;
             }
-
-            /**
-             *  Download the Release file
-             */
-            $this->download($url . '/' . $releaseFile, $this->workingDir . '/' . $releaseFile);
         }
 
         /**
@@ -67,7 +50,7 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
      *   - Sources packages file location  (Sources / Sources.gz)
      *   - Translation file location       (Translation-en / Translation-en.bz2)
      */
-    private function parseReleaseFile(string $url)
+    private function parseReleaseFile(string $url) : void
     {
         /**
          *  Process research of Packages indices for each arch
@@ -144,10 +127,8 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
                      *  Include this Packages.xx/Sources.xx file only if it does really exist on the remote server (sometimes it can be declared in Release but not exists...)
                      */
                     try {
-                        $this->httpRequestController->get([
+                        $this->httpRequestController->reachable([
                             'url' => $url . '/' . $location,
-                            'connectTimeout' => 30,
-                            'timeout' => 30,
                             'sslCertificatePath' => $this->sslCustomCertificate,
                             'sslPrivateKeyPath' => $this->sslCustomPrivateKey,
                             'sslCaCertificatePath' => $this->sslCustomCaCertificate,
@@ -250,7 +231,7 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
     /**
      *  Parse Packages indices file to find .deb packages location
      */
-    private function parsePackagesIndiceFile(string $url)
+    private function parsePackagesIndiceFile(string $url) : void
     {
         $this->taskLogSubStepController->new('retrieving-deb-packages-list', 'RETRIEVING DEB PACKAGES LIST');
 
@@ -369,7 +350,7 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
     /**
      *  Parse Sources indices file to find .dsc/tar.gz/tar.xz sources packages location
      */
-    private function parseSourcesIndiceFile(string $url)
+    private function parseSourcesIndiceFile(string $url) : void
     {
         /**
          *  Ignore this function if no 'src' arch has been specified
@@ -532,7 +513,7 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
     /**
      *  Check Release file GPG signature
      */
-    private function checkReleaseGPGSignature()
+    private function checkReleaseGPGSignature() : void
     {
         /**
          *  List of possible Release files to check
@@ -621,7 +602,7 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
     /**
      *  Check GPG signature of specified file
      */
-    private function checkGPGSignature(string $signedFile, string $clearFile = '')
+    private function checkGPGSignature(string $signedFile, string $clearFile = '') : void
     {
         /**
          *  Check that signature file exists
@@ -678,7 +659,7 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
     /**
      *  Download deb packages
      */
-    private function downloadDebPackages($url)
+    private function downloadDebPackages($url) : void
     {
         /**
          *  Define package relative dir
@@ -809,8 +790,16 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
 
                 /**
                  *  Check if file does not already exists before downloading it (e.g. copied from a previously snapshot)
+                 *  Or if resuming from a previous run (.completed file exists)
                  */
                 if (file_exists($absoluteDir . '/' . $debPackageName)) {
+                    // Check that .completed file exists, if so, skip the package
+                    // if (file_exists($absoluteDir . '/' . $debPackageName . '.completed')) {
+                    //     $this->taskLogSubStepController->completed('Already exists (resuming from previous run)');
+                    //     continue;
+                    // }
+
+                    // Otherwise check that checksum matches, if so, skip the package
                     if ($this->checksum($absoluteDir . '/' . $debPackageName, $debPackageChecksum)) {
                         $this->taskLogSubStepController->completed('Already exists (ignoring)');
                         continue;
@@ -822,29 +811,26 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
                  */
                 if (isset($this->previousSnapshotDirPath)) {
                     if (file_exists($this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName)) {
-                        /**
-                         *  If deduplication is enabled
-                         *  Create a hard link to the package
-                         */
-                        if (REPO_DEDUPLICATION) {
-                            if (!link($this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName, $absoluteDir . '/' . $debPackageName)) {
-                                throw new Exception('Cannot create hard link to package: ' . $this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName);
+                        if (!file_exists($absoluteDir . '/' . $debPackageName)) {
+                            // If deduplication is enabled, create a hard link to the package
+                            if (REPO_DEDUPLICATION) {
+                                if (!link($this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName, $absoluteDir . '/' . $debPackageName)) {
+                                    throw new Exception('Cannot create hard link to package: ' . $this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName);
+                                }
+
+                                $this->taskLogSubStepController->completed('Linked to previous snapshot');
+                            // If deduplication is not enabled, copy the package from the previous snapshot
+                            } else {
+                                if (!copy($this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName, $absoluteDir . '/' . $debPackageName)) {
+                                    throw new Exception('Cannot copy package from previous snapshot: ' . $this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName);
+                                }
+
+                                $this->taskLogSubStepController->completed('Copied from previous snapshot');
                             }
-
-                            $this->taskLogSubStepController->completed('Linked to previous snapshot');
-
-                            continue;
                         }
 
-                        /**
-                         *  If deduplication is not enabled
-                         *  Copy package from the previous snapshot
-                         */
-                        if (!copy($this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName, $absoluteDir . '/' . $debPackageName)) {
-                            throw new Exception('Cannot copy package from previous snapshot: ' . $this->previousSnapshotDirPath . '/' . $relativeDir . '/' . $debPackageName);
-                        }
-
-                        $this->taskLogSubStepController->completed('Copied from previous snapshot');
+                        // Create a .completed file to indicate that the package has been downloaded
+                        $this->createCompletedFile($absoluteDir . '/' . $debPackageName);
 
                         continue;
                     }
@@ -905,7 +891,7 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
     /**
      *  Download deb sources packages
      */
-    private function downloadDebSourcesPackages($url)
+    private function downloadDebSourcesPackages($url) : void
     {
         /**
          *  Ignore this function if no 'src' arch has been specified
@@ -956,19 +942,23 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
                 $this->taskLogSubStepController->new('downloading-source-package-' . $packageCounter, 'DOWNLOADING SOURCE PACKAGE (' . $packageCounter . '/' . $totalPackages . ')', $sourcePackageLocation);
 
                 /**
+                 *  Check if file does not already exists in the working dir before downloading it (e.g. when a package has multiple possible archs, it can have
+                 *  been downloaded or linked already from another arch)
+                 *  Or if resuming from a previous run (.completed file exists)
+                 */
+                if (file_exists($absoluteDir . '/' . $sourcePackageName)) {
+                    // Check that .completed file exists, if so, skip the package
+                    if (file_exists($absoluteDir . '/' . $sourcePackageName . '.completed')) {
+                        $this->taskLogSubStepController->completed('Already exists (resuming from previous run)');
+                        continue;
+                    }
+                }
+
+                /**
                  *  Before downloading package, check if there is enough disk space left (2GB minimum)
                  */
                 if (disk_free_space(REPOS_DIR) < 2000000000) {
                     throw new Exception('Low disk space: repository storage has reached 2GB (minimum) of free space left. Task automatically stopped.');
-                }
-
-                /**
-                 *  Check if file does not already exists in the working dir before downloading it (e.g. when a package has multiple possible archs, it can have
-                 *  been downloaded or linked already from another arch)
-                 */
-                if (file_exists($absoluteDir . '/' . $sourcePackageName)) {
-                    $this->taskLogSubStepController->completed('Already exists (ignoring)');
-                    continue;
                 }
 
                 /**
@@ -1050,7 +1040,7 @@ class Deb extends \Controllers\Repo\Mirror\Mirror
     /**
      *  Mirror a deb repository
      */
-    public function mirror()
+    public function mirror() : void
     {
         $this->initialize();
 

@@ -201,7 +201,7 @@ class Repo
         return $this->section;
     }
 
-    public function getPackageType()
+    public function getPackageType() : string
     {
         return $this->packageType;
     }
@@ -502,7 +502,7 @@ class Repo
     /**
      *  Modification de l'état de rebuild des métadonnées du snapshot
      */
-    public function snapSetRebuild(string $snapId, string $status = null)
+    public function snapSetRebuild(string $snapId, string $status = '') : void
     {
         $this->model->snapSetRebuild($snapId, $status);
     }
